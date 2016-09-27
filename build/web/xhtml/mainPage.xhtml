@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+    <ui:composition template="/templates/layout.xhtml">
+        <ui:define name="top">
+            <!-->{bundle.Message}<-->
+        </ui:define>
+        <ui:define id="mainContent" name="content">
+            <h:outputScript library="js" name="myJs.js" target="body"/>
+            <h:form id="mainForm">
+                <p:growl id="message" showDetail="true" />
+                <p:selectOneMenu value="#{tdTypeValue.typeId}">
+                    <f:selectItem itemLabel="Select type" noSelectionOption="true"/>
+                    <f:selectItems value="#{timeDepositList.getTimeDeposit()}" 
+                                   var="type" 
+                                   itemLabel="#{type.name}" 
+                                   itemValue="#{type.tdTypeId}"/>
+                    <p:ajax event="change" 
+                            listener="#{timeDepositType.depositType(tdTypeValue.typeId)}" 
+                            update=':mainForm:tdType'/>
+                    <p:ajax event="change" 
+                            listener="#{timeDepositRate.depositRate(tdTypeValue.typeId)}" 
+                            update=":mainForm:tdRate, :#{p:component('saveTdBtn')}, :#{p:component('updateTdBtn')}"/>
+                </p:selectOneMenu>
+                <h:panelGrid columns="2" id="tdType">
+                    <p:outputLabel value="Time Deposit: "/>
+                    <p:inputText value="#{timeDepositType.name}">
+                        <p:ajax event="keyup" update=":#{p:component('saveTdBtn')}, :#{p:component('updateTdBtn')}"/>
+                    </p:inputText>
+                    <p:outputLabel value="Effectivity Date: "/>
+                    <p:calendar value="#{timeDepositType.effectivityDate}" id="restricted" navigator="true" pattern="MMM dd yyyy"/>
+                </h:panelGrid>
+                <br/>
+                <p:dataTable id="tdRate" 
+                             value="#{timeDepositRate.depoRateValue}" 
+                             var="rate" 
+                             editable="true" 
+                             draggableRows="true">
+                    <p:columnGroup type="header">
+                        <p:row>
+                            <p:column colspan="2" headerText="Amount"/>
+                            <p:column rowspan="2" headerText="Interest rate (per annum)"/>
+                            <p:column rowspan="2" colspan="2" headerText="Edit"/>
+                        </p:row>
+                        <p:row>
+                            <p:column headerText="From"/>
+                            <p:column headerText="To"/>
+                        </p:row>
+                    </p:columnGroup>
+                    <p:column>
+                        <p:cellEditor>
+                            <f:facet name="output"><h:outputText value="#{returnObject.commaSeptr(rate.amtFrom)}"/></f:facet>
+                            <f:facet name="input"><p:inputText value="#{rate.amtFrom}" 
+                                                               onclick="this.select()"
+                                                               onblur="doubleConvert(this)"/></f:facet>
+                        </p:cellEditor>
+                    </p:column>
+                    <p:column>
+                        <p:cellEditor>
+                            <f:facet name="output"><h:outputText value="#{returnObject.commaSeptr(rate.amtTo) eq '999,999,999,999' ? 'and ABOVE' : returnObject.commaSeptr(rate.amtTo)}" /></f:facet>
+                            <f:facet name="input"><p:inputText value="#{rate.amtTo}" 
+                                                               onclick="this.select()"
+                                                               onblur="doubleConvert(this)"/></f:facet>
+                        </p:cellEditor>
+                    </p:column>
+                    <p:column>
+                        <p:cellEditor>
+                            <f:facet name="output"><h:outputText value="#{rate.intrsRate}%" /></f:facet>
+                            <f:facet name="input"><p:inputText value="#{rate.intrsRate}" 
+                                                               onclick="this.select()"
+                                                               onblur="doubleConvert(this)"/></f:facet>
+                        </p:cellEditor>
+                    </p:column>
+                    <p:column>
+                        <p:rowEditor />
+                    </p:column>
+                    <p:column>
+                        <p:commandLink styleClass="ui-icon ui-icon-trash" 
+                                       action="#{timeDepositRate.removeRow(rate)}"
+                                       actionListener="#{removedItem.removedItemList(rate.tdRateId)}"
+                                       update=":#{p:component('tdRate')}"/>
+                    </p:column>
+                </p:dataTable>
+                <br/>
+                <h:panelGrid columns="2" id="tdRateValue">
+                    <p:outputLabel value="From"/>
+                    <p:inputText value="#{timeDepositRateValue.amtFrom}" onkeypress="return isNumberKey(event.keyCode, this)" onclick="this.select()" onblur="doubleConvert(this)"/>
+                    <p:outputLabel value="To"/>
+                    <p:inputText value="#{timeDepositRateValue.amtTo}" onkeypress="return isNumberKey(event.keyCode, this)" onclick="this.select()" onblur="doubleConvert(this)"/>
+                    <p:outputLabel value="Interest rate (%)"/>
+                    <p:inputText value="#{timeDepositRateValue.intrsRate}" onkeypress="return isNumberKey(event.keyCode, this)" onclick="this.select()" onblur="doubleConvert(this)"/>
+                </h:panelGrid>
+                <p>
+                    <span>
+                        <p:commandButton value="Add" 
+                                         actionListener="#{timeDepositRate.addRow(timeDepositRateValue)}" 
+                                         update=":#{p:component('tdRate')}"/>
+                        <p:commandButton id="saveTdBtn" disabled="#{empty timeDepositType.name}" 
+                                         value="Save" 
+                                         actionListener="#{timeDepositPersist.saveTimeDeposit(timeDepositType,timeDepositRate)}" update=":mainForm">
+                            <p:confirm header="Create a new Time Deposit" 
+                                       message="Are you sure you want to continue?" 
+                                       icon="ui-icon-alert"/>
+                        </p:commandButton>
+                        <p:commandButton id="updateTdBtn" disabled="#{empty tdTypeValue.typeId or empty timeDepositType.name}" value="Update" actionListener="#{timeDepositPersist.updateTimeDeposit(timeDepositType,timeDepositRate,removedItem)}" update=":mainForm">
+                            <p:confirm header="Update existing Time Deposit" 
+                                       message="Are you sure you want to continue?" 
+                                       icon="ui-icon-alert"/>
+                        </p:commandButton>
+                    </span>
+                </p>
+                <p:confirmDialog global="true" showEffect="fade" hideEffect="fade">
+                    <p:commandButton value="Yes" type="button" styleClass="ui-confirmdialog-yes" icon="ui-icon-check" />
+                    <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no" icon="ui-icon-close" />
+                </p:confirmDialog>
+            </h:form>
+        </ui:define>
+    </ui:composition>
+</html>
